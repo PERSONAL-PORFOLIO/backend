@@ -295,4 +295,14 @@ const deleteContact = async (req, res) => {
   }
 };
 
-module.exports = { submitContact, getContacts, markRead, deleteContact };
+// GET /api/contact/unread-count  (admin)
+const getUnreadCount = async (req, res) => {
+  try {
+    const count = await Contact.countDocuments({ read: false });
+    res.json({ success: true, data: { count } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { submitContact, getContacts, markRead, deleteContact, getUnreadCount };

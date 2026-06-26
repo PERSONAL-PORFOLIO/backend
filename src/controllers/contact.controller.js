@@ -305,4 +305,130 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
-module.exports = { submitContact, getContacts, markRead, deleteContact, getUnreadCount };
+// POST /api/contact/:id/reply  (admin)
+const replyToContact = async (req, res) => {
+  try {
+    const { replyMessage } = req.body;
+    if (!replyMessage?.trim()) {
+      return res.status(400).json({ success: false, message: 'Reply message is required' });
+    }
+
+    const contact = await Contact.findById(req.params.id);
+    if (!contact) return res.status(404).json({ success: false, message: 'Message not found' });
+
+    const transporter = createTransporter();
+    if (!transporter) {
+      return res.status(503).json({ success: false, message: 'SMTP not configured. Add MAIL_USER and MAIL_PASS to .env' });
+    }
+
+    const settings = await Settings.findOne();
+    const siteTitle = settings?.siteTitle || 'Portfolio';
+
+    const now = new Date().toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long',
+      day: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+
+    const esc = (str) =>
+      String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const escapedReply = esc(replyMessage).replace(/\n/g, '<br>');
+    const escapedOriginal = esc(contact.message).replace(/\n/g, '<br>');
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reply from ${esc(siteTitle)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#6366f1,#06b6d4);padding:32px 40px;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;">Reply from ${esc(siteTitle)}</h1>
+            <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">
+              In response to your message: <em>${esc(contact.subject)}</em>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 40px;">
+            <p style="margin:0 0 8px;font-size:14px;color:#64748b;">Hi <strong>${esc(contact.name)}</strong>,</p>
+
+            <!-- Reply message -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border-radius:12px;border:1px solid #e2e8f0;margin-bottom:28px;overflow:hidden;">
+              <tr>
+                <td style="background:#6366f1;padding:12px 24px;">
+                  <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.08em;">Reply</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#ffffff;padding:24px;">
+                  <p style="margin:0;font-size:15px;color:#374151;line-height:1.85;">${escapedReply}</p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Original message thread -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:8px;">
+              <tr>
+                <td style="padding:16px 24px;">
+                  <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Your original message</p>
+                  <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">${escapedOriginal}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
+            <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
+              Replied on ${now} · <strong style="color:#6366f1;">${esc(siteTitle)}</strong>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    const text = `Hi ${contact.name},\n\n${replyMessage}\n\n---\nYour original message:\n${contact.message}\n\n— ${siteTitle}`;
+
+    await transporter.verify();
+    await transporter.sendMail({
+      from: `"${siteTitle}" <${process.env.MAIL_USER}>`,
+      to: `"${contact.name}" <${contact.email}>`,
+      subject: `Re: ${contact.subject}`,
+      text,
+      html,
+    });
+
+    // Mark as read after replying
+    await Contact.findByIdAndUpdate(req.params.id, { read: true });
+
+    res.json({ success: true, message: `Reply sent to ${contact.email}` });
+  } catch (error) {
+    console.error('Reply error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { submitContact, getContacts, markRead, deleteContact, getUnreadCount, replyToContact };

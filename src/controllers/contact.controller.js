@@ -252,6 +252,66 @@ const submitContact = async (req, res) => {
       console.log('ℹ️  SMTP not configured — skipping email (MAIL_USER/MAIL_PASS missing)');
     }
 
+    // ── Auto-reply to the sender ────────────────────────────────
+    if (transporter && settings?.autoReply?.enabled) {
+      try {
+        await transporter.verify();
+        const siteTitle = settings?.siteTitle || 'Portfolio';
+        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const DEFAULT_BODY = `<p>Hi <strong>{{name}}</strong>,</p>
+<p>Thank you for reaching out! I've received your message about "<strong>{{subject}}</strong>" and will get back to you as soon as possible.</p>
+<p>In the meantime, feel free to check out my portfolio or connect with me on social media.</p>
+<p>Best regards,<br><strong>${esc(siteTitle)}</strong></p>`;
+
+        const rawBody = settings.autoReply.body?.trim() || DEFAULT_BODY;
+        const htmlBody = rawBody
+          .replace(/\{\{name\}\}/g, esc(name))
+          .replace(/\{\{subject\}\}/g, esc(subject))
+          .replace(/\{\{message\}\}/g, esc(message).replace(/\n/g, '<br>'));
+
+        const rawSubject = settings.autoReply.subject?.trim() || 'Thanks for reaching out, {{name}}!';
+        const emailSubject = rawSubject
+          .replace(/\{\{name\}\}/g, name)
+          .replace(/\{\{subject\}\}/g, subject);
+
+        const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;padding:40px 16px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" border="0"
+           style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+      <tr><td style="background:linear-gradient(135deg,#6366f1,#06b6d4);padding:32px 40px;">
+        <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;">${esc(siteTitle)}</h1>
+        <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">Message received</p>
+      </td></tr>
+      <tr><td style="padding:36px 40px;font-size:15px;color:#374151;line-height:1.85;">
+        ${htmlBody}
+      </td></tr>
+      <tr><td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
+        <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
+          This is an automated reply from <strong style="color:#6366f1;">${esc(siteTitle)}</strong>
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+        await transporter.sendMail({
+          from: `"${siteTitle}" <${process.env.MAIL_USER}>`,
+          to: `"${name}" <${email}>`,
+          subject: emailSubject,
+          text: rawBody.replace(/<[^>]+>/g, '').replace(/\{\{name\}\}/g, name).replace(/\{\{subject\}\}/g, subject).replace(/\{\{message\}\}/g, message),
+          html,
+        });
+        console.log(`✅ Auto-reply sent → ${email}`);
+      } catch (arErr) {
+        console.error('❌ Auto-reply failed:', arErr.message);
+      }
+    }
+
     res.status(201).json({ success: true, message: 'Message sent successfully', data: contact });
   } catch (error) {
     console.error('Contact submit error:', error);

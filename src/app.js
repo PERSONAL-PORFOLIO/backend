@@ -14,6 +14,9 @@ const contactRoutes = require('./routes/contact.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const settingsRoutes = require('./routes/settings.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const aiRoutes = require('./routes/ai.routes');
+const testimonialRoutes = require('./routes/testimonial.routes');
+const postRoutes = require('./routes/post.routes');
 
 const app = express();
 
@@ -43,6 +46,9 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/testimonials', testimonialRoutes);
+app.use('/api/posts', postRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

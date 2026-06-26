@@ -12,14 +12,14 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'portfolio',
-    allowed_formats: ['jpeg', 'jpg', 'png', 'gif', 'webp', 'pdf', 'svg'],
+    allowed_formats: ['jpeg', 'jpg', 'png', 'gif', 'webp', 'pdf', 'svg', 'mp4', 'mov', 'webm', 'avi', 'mkv'],
     resource_type: 'auto',
   },
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB (covers videos)
 });
 
 module.exports = upload;

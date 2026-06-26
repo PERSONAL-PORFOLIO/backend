@@ -30,6 +30,7 @@ const settingsSchema = new mongoose.Schema({
     projects: { type: Boolean, default: true },
     education: { type: Boolean, default: true },
     certificates: { type: Boolean, default: true },
+    blog: { type: Boolean, default: true },
     contact: { type: Boolean, default: true },
   },
 
@@ -44,6 +45,14 @@ const settingsSchema = new mongoose.Schema({
   typingRoles: {
     type: [String],
     default: ['Software Engineer', 'Vue.js Specialist', 'Node.js Engineer', 'UI/UX Enthusiast', 'Problem Solver'],
+  },
+
+  availableForWork: { type: Boolean, default: true },
+
+  autoReply: {
+    enabled: { type: Boolean, default: false },
+    subject: { type: String, default: 'Thanks for reaching out, {{name}}!' },
+    body: { type: String, default: '' }, // populated with default in controller if empty
   },
 
   maintenanceMode: { type: Boolean, default: false },

@@ -273,6 +273,17 @@ const getContacts = async (req, res) => {
   }
 };
 
+// GET /api/contact/:id  (admin)
+const getContact = async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id);
+    if (!contact) return res.status(404).json({ success: false, message: 'Message not found' });
+    res.json({ success: true, data: contact });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // PATCH /api/contact/:id/read  (admin)
 const markRead = async (req, res) => {
   try {
@@ -421,8 +432,11 @@ const replyToContact = async (req, res) => {
       html,
     });
 
-    // Mark as read after replying
-    await Contact.findByIdAndUpdate(req.params.id, { read: true });
+    // Save reply to history and mark as read
+    await Contact.findByIdAndUpdate(req.params.id, {
+      read: true,
+      $push: { replies: { message: replyMessage, sentAt: new Date() } },
+    });
 
     res.json({ success: true, message: `Reply sent to ${contact.email}` });
   } catch (error) {
@@ -431,4 +445,4 @@ const replyToContact = async (req, res) => {
   }
 };
 
-module.exports = { submitContact, getContacts, markRead, deleteContact, getUnreadCount, replyToContact };
+module.exports = { submitContact, getContacts, getContact, markRead, deleteContact, getUnreadCount, replyToContact };

@@ -89,6 +89,21 @@ const buildContext = async () => {
   return lines.join('\n');
 };
 
+/* Strip unsupported image content from messages (model is text-only) */
+const sanitizeMessages = (messages) => {
+  return messages.map(m => {
+    if (typeof m.content === 'string') return { ...m, content: m.content };
+    if (Array.isArray(m.content)) {
+      const textParts = m.content
+        .filter(part => part.type === 'text')
+        .map(part => part.text)
+        .join(' ');
+      return { ...m, content: textParts || '[Unsupported image content]' };
+    }
+    return m;
+  });
+};
+
 /* POST /api/ai/chat  — SSE streaming (public) */
 const chat = async (req, res) => {
   try {
@@ -102,6 +117,18 @@ const chat = async (req, res) => {
       return res.status(503).json({ success: false, message: 'AI not configured (GROQ_API_KEY missing)' });
     }
 
+    const sanitized = sanitizeMessages(messages);
+
+    const hasImageInput = sanitized.some(m =>
+      m.content && String(m.content).includes('[Unsupported image content]')
+    );
+    if (hasImageInput) {
+      return res.status(400).json({
+        success: false,
+        message: 'I can only read and respond to text messages. Please describe what you see or ask in text instead.',
+      });
+    }
+
     const context = await buildContext();
 
     const systemPrompt = `You are AskTim, an AI assistant built into Tim's software engineering portfolio.
@@ -110,7 +137,12 @@ Your job is to help visitors learn about Tim based ONLY on the information provi
 PORTFOLIO DATA:
 ${context}
 
-RULES:
+CONTACT INFORMATION RULES:
+- When asked about contacting Tim, provide the available contact details: email, phone, LinkedIn, GitHub, or other social links from the data above.
+- Format email addresses as plain text only (e.g. "tim@example.com"), NEVER use https:// for emails.
+- For all other URLs (LinkedIn, GitHub, etc.), always include the full URL with https:// prefix (e.g. https://linkedin.com/in/username).
+
+GENERAL RULES:
 - Answer questions about Tim's skills, experience, projects, education and background.
 - If asked something not covered in the data, say you don't have that info but suggest they use the contact form.
 - Keep answers concise (2-4 sentences max unless a list is needed).
@@ -118,9 +150,10 @@ RULES:
 - Never make up information not in the data above.
 - If asked who you are, say: "I'm AskTim, an AI assistant that helps you learn about Tim's work and background."
 - Refer to the portfolio owner as "Tim" not "they" or "the owner".
-- IMPORTANT: When mentioning any URL or link, ALWAYS include the full URL with https:// prefix (e.g. https://linkedin.com/in/timbin). Never write a URL without the protocol.`;
+- IMPORTANT: Only social/profile URLs (LinkedIn, GitHub, etc.) need https://. Never use https:// for email addresses.
+- IMPORTANT: You cannot see, read, or analyze images or files. If someone asks you to look at an image or file, explain that you can only work with text.`;
 
-    const trimmed = messages.slice(-10).map(m => ({
+    const trimmed = sanitized.slice(-10).map(m => ({
       role: m.role === 'user' ? 'user' : 'assistant',
       content: String(m.content).slice(0, 1000),
     }));

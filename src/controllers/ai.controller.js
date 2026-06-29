@@ -120,7 +120,7 @@ const chat = async (req, res) => {
     const sanitized = sanitizeMessages(messages);
 
     const hasImageInput = sanitized.some(m =>
-      m.content && String(m.content).includes('[Unsupported image content]')
+      m.content && String(m.content).includes('[Unsupported image content]'),
     );
     if (hasImageInput) {
       return res.status(400).json({

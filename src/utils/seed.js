@@ -18,21 +18,13 @@ const seed = async () => {
   await Project.deleteMany({});
   await Education.deleteMany({});
 
-  // Create admin user
-  await User.create({
-    username: 'Tim BIN',
-    email: 'admin@tim.dev',
-    password: 'admin@2026',
-    role: 'admin',
-  });
-
   // Create profile
   await Profile.create({
     fullName: 'Tim Bin',
-    title: 'Software Enginneer',
-    summary: 'Passionate Software Enginneer with expertise in building modern web applications. Experienced in React, Vue, Node.js, and cloud technologies. I love turning complex problems into elegant, user-friendly solutions.',
+    title: 'Software Engineer',
+    summary: 'Passionate Software Engineer with expertise in building modern web applications. Experienced in React, Vue, Node.js, and cloud technologies. I love turning complex problems into elegant, user-friendly solutions.',
     location: 'Your City, Country',
-    email: 'admin@tim.dev',
+    email: 'tim.bin7777@gmail.com',
     githubUrl: 'https://github.com/timbin',
     linkedinUrl: 'https://linkedin.com/in/timbin',
   });
@@ -59,7 +51,7 @@ const seed = async () => {
   await Experience.insertMany([
     {
       company: 'Tech Company A',
-      position: 'Software Enginneer',
+      position: 'Software Engineer',
       description: 'Developed and maintained multiple web applications using React, Node.js, and MongoDB. Led frontend architecture decisions and mentored junior developers.',
       startDate: new Date('2022-01-01'),
       endDate: null,

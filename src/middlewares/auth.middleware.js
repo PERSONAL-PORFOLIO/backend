@@ -1,10 +1,10 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 
-const protect = async (req, res, next) => {
+// All admin user info is encoded in the JWT — no DB lookup needed.
+const protect = (req, res, next) => {
   let token;
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  if (req.headers.authorization?.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
 
@@ -14,12 +14,20 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select('-password');
-    if (!req.user) {
-      return res.status(401).json({ success: false, message: 'User not found' });
+
+    if (!decoded.id || decoded.role !== 'admin') {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
     }
+
+    req.user = {
+      id: decoded.id,
+      username: decoded.username,
+      email: decoded.email,
+      role: decoded.role,
+    };
+
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ success: false, message: 'Not authorized, token invalid' });
   }
 };
